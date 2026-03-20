@@ -1,0 +1,26 @@
+.wclm-pagination {
+    margin-top: 15px;
+    text-align: right;
+}
+
+.wclm-pagination .page-numbers {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 0 3px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+    color: #0073aa;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.wclm-pagination .page-numbers:hover {
+    background: #f1f1f1;
+}
+
+.wclm-pagination .page-numbers.current {
+    background: #0073aa;
+    color: #fff;
+    border-color: #0073aa;
+}
