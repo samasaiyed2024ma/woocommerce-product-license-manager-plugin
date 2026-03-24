@@ -37,39 +37,58 @@ class WCLM_License_Admin {
         );
     }
 
-	public function render_page() {
 
+	public function render_page() {
 		$current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
 		$per_page     = 20;
-
 		$core = new WCLM_License_Core();
 
-		// STEP 1: Fetch a reasonable batch of orders
+		// STEP 1: Fetch a batch of orders
 		$orders = wc_get_orders([
 			'status'        => 'completed',
-			'limit'         => -1, // Fetch more to allow filtering
-			'date_created'  => '>' . (time() - YEAR_IN_SECONDS),
+			'limit'         => -1,
 		]);
 
 		$filtered_items = [];
+        $today_timestamp = strtotime(current_time('Y-m-d'));
 
 		// STEP 2: Filter valid license items
 		foreach ($orders as $order) {
 			foreach ($order->get_items('line_item') as $item_id => $item) {
 
 				if (!is_a($item, 'WC_Order_Item_Product')) continue;
+
+                // Filter by category 'services'
 				if (!$core->is_license_product($item)) continue;
 
-				$expiry_date = $item->get_meta('_license_expiry_date', true);
+                // Get expiry date from Item Meta (preferred) or Order Meta (fallback)
+                $expiry_date = wc_get_order_item_meta($item_id, '_license_expiry_date', true);
+                if (empty($expiry_date)) {
+                    $expiry_date = $order->get_meta('_license_expiry_date', true);
+                }
 
-				if (empty($expiry_date) || $expiry_date === 'N/A') continue;
-				if (strtotime($expiry_date) < time()) continue;
+                // Determine Status
+                $status_label = __('No Date Set', 'WCLM');
+                $status_color = '#999';
+
+                if (!empty($expiry_date) && $expiry_date !== 'N/A') {
+                    $expiry_timestamp = strtotime($expiry_date);
+                    if ($expiry_timestamp < $today_timestamp) {
+                        $status_label = __('Expired', 'WCLM');
+                        $status_color = '#d63638'; // Red
+                    } else {
+                        $status_label = __('Active', 'WCLM');
+                        $status_color = '#00a32a'; // Green
+                    }
+                }
 
 				$filtered_items[] = [
 					'order'     => $order,
 					'item'      => $item,
 					'item_id'   => $item_id,
-					'expiry'    => $expiry_date,
+					'expiry'    => !empty($expiry_date) ? $expiry_date : 'N/A',
+                    'status_label' => $status_label,
+                    'status_color' => $status_color
 				];
 			}
 		}
@@ -77,14 +96,13 @@ class WCLM_License_Admin {
 		// STEP 3: Manual pagination on filtered items
 		$total_items = count($filtered_items);
 		$total_pages = max(1, ceil($total_items / $per_page));
-
 		$offset      = ($current_page - 1) * $per_page;
 		$paged_items = array_slice($filtered_items, $offset, $per_page);
 
 		?>
 
 		<div class="wrap">
-			<h1><?php esc_html_e('License Reports', 'WCLM'); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html_e('License Reports', 'WCLM'); ?></h1>
 
 			<div class="tablenav top">
 				<?php echo $this->render_pagination($current_page, $total_pages); ?>
@@ -95,11 +113,10 @@ class WCLM_License_Admin {
 					<tr>
 						<th><?php esc_html_e('Order', 'WCLM'); ?></th>
 						<th><?php esc_html_e('Customer Name', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Email', 'WCLM'); ?></th>
 						<th><?php esc_html_e('Product', 'WCLM'); ?></th>
 						<th><?php esc_html_e('Expiry', 'WCLM'); ?></th>
 						<th><?php esc_html_e('Status', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Action', 'WCLM'); ?></th>
+						<th><?php esc_html_e('Actions', 'WCLM'); ?></th>
 					</tr>
 				</thead>
 
@@ -117,11 +134,18 @@ class WCLM_License_Admin {
 
 					<tr>
 						<td>#<?php echo esc_html($order->get_id()); ?></td>
-						<td><?php echo esc_html($order->get_billing_first_name()) .' '. esc_html($order->get_billing_last_name()); ?></td>
-						<td><?php echo esc_html($order->get_billing_email()); ?></td>
+						<td>
+                            <?php echo esc_html($order->get_formatted_billing_full_name()); ?><br>
+                            <small><?php echo esc_html($order->get_billing_email()); ?></small>
+                        </td>
+			
 						<td><?php echo esc_html($item->get_name()); ?></td>
 						<td><?php echo esc_html($expiry_date); ?></td>
-						<td><span style="color:green"><?php esc_html_e('Active', 'WCLM'); ?></span></td>
+						<td>
+                            <span class="badge expiration_status" style="background:<?php echo $row['status_color']; ?>;">
+                                <?php echo esc_html($row['status_label']); ?>
+                            </span>  
+                        </td>
 						<td>
 							<!-- Customer Email -->
 							<form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline-block; margin-bottom:5px;">

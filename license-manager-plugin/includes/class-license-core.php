@@ -36,10 +36,10 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-        $order_completed = $order->get_date_completed();
-        if (!$order_completed) return false;
+	    $order_created = $order->get_date_created();
+        if (!$order_created) return false;
 
-        $order_date = $order_completed->getTimestamp();
+        $order_date = $order_created->getTimestamp();
         // Set expiry to 1 year after the order was actually completed
         $expire_date = date('Y-m-d', strtotime('+1 year', $order_date));
 
@@ -105,7 +105,7 @@ class WCLM_License_Core {
             }
         }
     }
-
+	
     /**
      * Filter: Determine if a product qualifies for a license
      */
