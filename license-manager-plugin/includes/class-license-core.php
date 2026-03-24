@@ -36,12 +36,13 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-	    $order_created = $order->get_date_created();
-        if (!$order_created) return false;
+//         $order_completed = $order->get_date_completed();
+	    $order_completed = $order->get_date_created();
+        if (!$order_completed) return false;
 
-        $order_date = $order_created->getTimestamp();
+        $order_date = $order_completed->getTimestamp();
         // Set expiry to 1 year after the order was actually completed
-        $expire_date = date('Y-m-d', strtotime('+1 year', $order_date));
+        $expire_date = date('Y-m-d', strtotime('+2 days', $order_date));
 
         wc_update_order_item_meta($item_id, '_license_expiry_date', $expire_date);
         wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
@@ -92,7 +93,7 @@ class WCLM_License_Core {
 
                 // STEP 2: REMINDER CHECK
                 $expiry_timestamp = strtotime($expiry_date);
-                $reminder_date    = date('Y-m-d', strtotime('-14 days', $expiry_timestamp));
+                $reminder_date    = date('Y-m-d', strtotime('-2 days', $expiry_timestamp));
 
                 // If today is within the 14-day window before expiry
                 if ($today >= $reminder_date && $today < $expiry_date) {
@@ -124,23 +125,27 @@ class WCLM_License_Core {
      */
 	public function send_customer_email($order, $item, $expiry_date) {
 		$to      = $order->get_billing_email();
-		$first_name    = $order->get_billing_first_name();
-		$last_name = $order->get_billing_last_name();
+		$customer_name  = $order->get_formatted_billing_full_name();
 		$product = $item->get_name();
-        $subject = sprintf(__('הרישיון שלך עבור %s עומד פוג בקרוב', 'WCLM'), $product);
+		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
 
 		ob_start();
 		?>
 
-		<h2 style="color:#cc0000; text-align:right;"> <?php esc_html_e('תזכורת לגבי פקיעת תוקף הרישיון', 'WCLM'); ?> </h2>
+		<h2 style="color:#cc0000; text-align:right;"> <?php echo esc_html__('הודעה על חידוש אוטומטי של שירותים לאתר', 'WCLM'); ?> </h2>
 
-		<p style="direction:rtl; text-align:right;"> <?php printf(esc_html__('שלום %1$s %2$s,', 'WCLM'), esc_html($first_name), esc_html($last_name)); ?> </p>
+		<p style="direction:rtl; text-align:right;"> <?php echo esc_html__('שלום רב,', 'WCLM'); ?> </p>
 		
 		<p style="direction:rtl; text-align:right;">
-            <?php printf(esc_html__("אנו מקווים שאתה נהנה מ-%s. זוהי תזכורת ידידותית לכך שתוקף הרישיון שלך עומד לפוג בקרוב.", 'WCLM'), '<strong>' . esc_html($product) . '</strong>'); ?>
+            <?php echo esc_html__('ברצוננו לעדכנך כי בעוד 14 ימים יחודשו שירותי האתר שלך אוטומטית לשנה נוספת, בהתאם לתנאי ההתקשרות:', 'WCLM'); ?>
 		</p>
 
 		<table cellspacing="0" cellpadding="10" style="width:100%; border:1px solid #e5e5e5; border-collapse:collapse; margin:20px 0; direction:rtl;">
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('לקוח', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($customer_name); ?></td>
+			</tr>
+			
 			<tr>
 				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מוצר', 'WCLM'); ?> </th>
 				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
@@ -155,12 +160,18 @@ class WCLM_License_Core {
    		</table>
 
 		<p style="margin-top:20px; direction:rtl; text-align:right;">
-			<?php esc_html_e('לידיעתך, הרישיון יחודש באופן אוטומטי. במידה וברצונך לבצע שינויים או במידה ויש לך שאלות, אנא צור קשר עם המנהל או עם צוות התמיכה.', 'WCLM'); ?>
+			<?php esc_html_e('אי פנייה אלינו בתוך פרק זמן זה תיחשב כהסכמה לחידוש השירותים, באותם תנאים.', 'WCLM'); ?> <br>
+			<?php esc_html_e('במהלך 14 הימים ממועד קבלת הודעה זו ניתן לפנות אלינו בכתב לצורך שינוי חבילת השירותים - הוספה או הסרה של שירותים, או בקשה להפסקת כלל השירותים. אי פנייה אלינו בתקופה זו תחשב כהסכמתך לחידוש השירותים לשנה נוספת.'); ?> <br>
+			<?php esc_html_e('במקרה של בקשה להפסקת כלל השירותים - האתר יימחק משרתי החברה וירד מהאוויר.'); ?>
+		</p>
+
+		<p style="direction:rtl; text-align:right;">
+			<?php esc_html_e('לכל שאלה או בקשה - ניתן להשיב למייל זה.'); ?>
 		</p>
 
 		<p style="direction:rtl; text-align:right;">
             <?php esc_html_e('בברכה,', 'WCLM'); ?><br>
-            <?php printf( esc_html__('צוות %s', 'WCLM'), '<strong>' . esc_html(get_bloginfo('name')) . '</strong>' ); ?>
+            <?php esc_html_e('מירב', 'WCLM'); ?>
    		</p>
 
 		<?php
