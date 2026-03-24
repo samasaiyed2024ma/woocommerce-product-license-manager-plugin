@@ -36,13 +36,13 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-//         $order_completed = $order->get_date_completed();
-	    $order_completed = $order->get_date_created();
-        if (!$order_completed) return false;
+	    $order_created = $order->get_date_created();
+        if (!$order_created) return false;
 
-        $order_date = $order_completed->getTimestamp();
+        $order_date = $order_created->getTimestamp();
+
         // Set expiry to 1 year after the order was actually completed
-        $expire_date = date('Y-m-d', strtotime('+2 days', $order_date));
+        $expire_date = date('Y-m-d', strtotime('+1 year', $order_date));
 
         wc_update_order_item_meta($item_id, '_license_expiry_date', $expire_date);
         wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
@@ -111,8 +111,9 @@ class WCLM_License_Core {
      * Filter: Determine if a product qualifies for a license
      */
     public function is_license_product($item) {
-        // Check Simple Products (Category: services)
+        // Check Products (Category: services)
         $product_id = $item->get_product_id();
+
         if(has_term('services', 'product_cat', $product_id)){
 			return true;
 		}

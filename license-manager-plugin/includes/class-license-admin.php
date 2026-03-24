@@ -137,8 +137,7 @@ class WCLM_License_Admin {
 						<td>
                             <?php echo esc_html($order->get_formatted_billing_full_name()); ?><br>
                             <small><?php echo esc_html($order->get_billing_email()); ?></small>
-                        </td>
-			
+                        </td>			
 						<td><?php echo esc_html($item->get_name()); ?></td>
 						<td><?php echo esc_html($expiry_date); ?></td>
 						<td>
