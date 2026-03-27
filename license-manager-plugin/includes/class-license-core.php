@@ -36,10 +36,10 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-	    $order_created = $order->get_date_created();
-        if (!$order_created) return false;
+	    $order_completed = $order->get_date_completed();
+        if (!$order_completed) return false;
 
-        $order_date = $order_created->getTimestamp();
+        $order_date = $order_completed->getTimestamp();
 
         // Set expiry to 1 year after the order was actually completed
         $expire_date = date('Y-m-d', strtotime('+1 year', $order_date));
@@ -130,6 +130,29 @@ class WCLM_License_Core {
 		$product = $item->get_name();
 		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
 
+        // Get variation description
+		$variation_id = $item->get_variation_id();
+		$variation_desc = '';
+		
+		if($variation_id > 0){
+			$variation = wc_get_product($variation_id);
+			if($variation){
+				$full_desc = $variation->get_description();
+				
+				// If there's a colon, take everything before it.
+				if (str_contains($full_desc, ':')) {
+					$parts = explode(':', $full_desc);
+					$variation_desc = trim($parts[0]);
+				} else {
+					$variation_desc = $full_desc;
+				}
+				
+				//Change "Storage only" to just "Storage" in service type
+            	//$variation_desc = str_ireplace('Storage only', 'Storage', $variation_desc);
+				$variation_desc = str_ireplace('אחסון בלבד', 'אחסון', $variation_desc);
+			}
+		}
+
 		ob_start();
 		?>
 
@@ -151,6 +174,13 @@ class WCLM_License_Core {
 				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מוצר', 'WCLM'); ?> </th>
 				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
 			</tr>
+
+            <?php if ( ! empty( $variation_desc ) ) : ?>
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('סוג שירות', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($variation_desc); ?></td>
+			</tr>
+			<?php endif; ?>
 
 			<tr>
 				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('תאריך פקיעת הרישיון', 'WCLM'); ?> </th>
