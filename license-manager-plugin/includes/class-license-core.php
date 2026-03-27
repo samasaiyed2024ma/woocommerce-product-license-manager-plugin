@@ -93,7 +93,7 @@ class WCLM_License_Core {
 
                 // STEP 2: REMINDER CHECK
                 $expiry_timestamp = strtotime($expiry_date);
-                $reminder_date    = date('Y-m-d', strtotime('-2 days', $expiry_timestamp));
+                $reminder_date    = date('Y-m-d', strtotime('-14 days', $expiry_timestamp));
 
                 // If today is within the 14-day window before expiry
                 if ($today >= $reminder_date && $today < $expiry_date) {
