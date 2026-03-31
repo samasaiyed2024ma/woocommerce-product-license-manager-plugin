@@ -36,7 +36,7 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-	    $order_completed = $order->get_date_created();
+	    $order_completed = $order->get_date_completed();
         if (!$order_completed) return false;
 
         $order_date = $order_completed->getTimestamp();
@@ -89,20 +89,34 @@ class WCLM_License_Core {
                     $expiry_date = $this->calculate_and_save_expiry($order, $item_id, $item);
                 }
 
-                if (!$expiry_date || $reminder_sent === 'yes') continue;
+                if (!$expiry_date) continue;
 
                 // STEP 2: REMINDER CHECK
                 $expiry_timestamp = strtotime($expiry_date);
                 $reminder_date    = date('Y-m-d', strtotime('-14 days', $expiry_timestamp));
 
                 // If today is within the 14-day window before expiry
-                if ($today >= $reminder_date && $today < $expiry_date) {
+                if ($reminder_sent !== 'yes' && $today >= $reminder_date && $today < $expiry_date) {
 					WCLM_License_Email::send_customer_email($order, $item, $expiry_date);
 					WCLM_License_Email::send_admin_email($order, $item, $expiry_date);
 
                     wc_update_order_item_meta($item_id, '_license_reminder_sent', 'yes');
                     $order->add_order_note( __('License reminder email sent to customer and admin.', 'WCLM'));
                 }
+
+				// License Renewal
+				if($today === $expiry_date){
+					$new_expiry = date('Y-m-d', strtotime('+1 year', $expiry_timestamp));
+
+					//Update meta
+					wc_update_order_item_meta($item_id, '_license_expiry_date', $new_expiry);
+					wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
+					update_post_meta($order_id, '_license_expiry_date', $new_expiry);
+
+					WCLM_License_Email::send_license_renewal_email_to_customer($order, $item, $new_expiry);
+
+					$order->add_order_note(sprintf(__('License auto-renewed. New expiry: %s', 'WCLM'), $new_expiry));
+				}
             }
         }
     }

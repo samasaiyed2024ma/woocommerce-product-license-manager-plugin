@@ -4,6 +4,16 @@ if (!defined('ABSPATH')) exit;
 class WCLM_License_Email {
 
     /**
+     * Common Mail Wrapper
+     */
+    private static function send_mail($to, $subject, $message) {
+        $mailer = WC()->mailer();
+        $wrapped = $mailer->wrap_message($subject, $message);
+
+        wc_mail($to, $subject, $wrapped);
+    }
+
+    /**
      * Send customer email for license expiration reminder
      */
     public static function send_customer_email($order, $item, $expiry_date) {
@@ -123,12 +133,61 @@ class WCLM_License_Email {
 	}
 
     /**
-     * Common Mail Wrapper
+     * Send customer email when the license has renewed
      */
-    private static function send_mail($to, $subject, $message) {
-        $mailer = WC()->mailer();
-        $wrapped = $mailer->wrap_message($subject, $message);
+    public static function send_license_renewal_email_to_customer($order, $item, $new_expiry){
+        $to      = $order->get_billing_email();
+		$customer_name  = $order->get_formatted_billing_full_name();
+		$product = $item->get_name();
+		$variation_desc = WCLM_License_Core::get_product_variation_desc($item);
+		$subject = esc_html__('הודעה על חידוש המנוי לשירותי האתר');
 
-        wc_mail($to, $subject, $wrapped);
-    }
+		ob_start();
+		?>
+		<p style="direction:rtl; text-align:right;"> <?php echo esc_html__('שלום רב,', 'WCLM'); ?> </p>
+		
+		<p style="direction:rtl; text-align:right;">
+            <?php echo esc_html__('המנוי שלך לשירותי האתר חודש לשנה נוספת. אין צורך בפעולה נוספת מצידך.', 'WCLM'); ?>
+		</p>
+
+		<table cellspacing="0" cellpadding="10" style="width:100%; border:1px solid #e5e5e5; border-collapse:collapse; margin:20px 0; direction:rtl;">
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('לקוח', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($customer_name); ?></td>
+			</tr>
+			
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מוצר', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
+			</tr>
+
+            <?php if ( ! empty( $variation_desc ) ) : ?>
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('סוג שירות', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($variation_desc); ?></td>
+			</tr>
+			<?php endif; ?>
+
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('תוקף חדש', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; font-weight:bold; color:#d63638; text-align:right;">
+					<?php echo esc_html($new_expiry); ?>
+				</td>
+			</tr>
+   		</table>
+
+        <p style="direction:rtl; text-align:right;">
+            <?php esc_html_e('תודה שבחרת בנו שוב', 'WCLM'); ?>
+        </p>
+
+		<p style="direction:rtl; text-align:right;">
+            <?php esc_html_e('בברכה,', 'WCLM'); ?><br>
+            <?php esc_html_e('מירב', 'WCLM'); ?>
+   		</p>
+
+		<?php
+
+		$message = ob_get_clean();
+        self::send_mail($to, $subject, $message);
+    } 
 }
