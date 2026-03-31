@@ -12,8 +12,10 @@ if (!defined('ABSPATH')) exit;
 define('WCLM_PATH', plugin_dir_path(__FILE__));
 define('WCLM', 'woocommerce-license-manager');
 
+require_once WCLM_PATH . 'includes/class-license-email.php';
 require_once WCLM_PATH . 'includes/class-license-core.php';
 require_once WCLM_PATH . 'includes/class-license-admin.php';
+
 
 /**
  * Plugin activation

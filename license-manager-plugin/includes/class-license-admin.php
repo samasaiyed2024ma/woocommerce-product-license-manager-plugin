@@ -62,7 +62,7 @@ class WCLM_License_Admin {
 				if (!is_a($item, 'WC_Order_Item_Product')) continue;
 
                 // Filter by category 'services'
-				if (!$core->is_license_product($item)) continue;
+				if (!WCLM_License_Core::is_license_product($item)) continue;
 
                 // Get expiry date from Item Meta (preferred) or Order Meta (fallback)
                 $expiry_date = wc_get_order_item_meta($item_id, '_license_expiry_date', true);
@@ -118,7 +118,7 @@ class WCLM_License_Admin {
 						$item        = $row['item'];
 						$item_id     = $row['item_id'];
 						$expiry_date = $row['expiry'];
-						$variation_desc = $core->get_product_variation_desc($item);
+						$variation_desc = WCLM_License_Core::get_product_variation_desc($item);
 					?>
 
 					<tr>
@@ -236,15 +236,15 @@ class WCLM_License_Admin {
 		if (!$order) wp_die('Invalid Order');
 		
 		// Check if the item actually belongs to this order and is a license product
-		if (!$item || !$core->is_license_product($item)) {
+		if (!$item || !WCLM_License_Core::is_license_product($item)) {
 			wp_die('Invalid Item for this Order');
 		}
 
 		if ($type === 'customer') {
-			$core->send_customer_email($order, $item, $expiry);
+			WCLM_License_Email::send_customer_email($order, $item, $expiry);
 			$order->add_order_note( __('Manual license email sent to customer.', 'WCLM'));
 		} else {
-			$core->send_admin_email($order, $item, $expiry);
+			WCLM_License_Email::send_admin_email($order, $item, $expiry);
 			$order->add_order_note( __('Manual license alert sent to admin.', 'WCLM' ));
 		}
 

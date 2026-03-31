@@ -26,7 +26,7 @@ class WCLM_License_Core {
         if (!$order) return;
 
         foreach ($order->get_items() as $item_id => $item) {
-            if ($this->is_license_product($item)) {
+            if (self::is_license_product($item)) {
                 $this->calculate_and_save_expiry($order, $item_id, $item);
             }
         }
@@ -78,7 +78,7 @@ class WCLM_License_Core {
             if (!$order) continue;
 
             foreach ($order->get_items() as $item_id => $item) {
-                if (!$this->is_license_product($item)) continue;
+                if (!self::is_license_product($item)) continue;
 
                 $expiry_date   = wc_get_order_item_meta($item_id, '_license_expiry_date', true);
                 $reminder_sent = wc_get_order_item_meta($item_id, '_license_reminder_sent', true);
@@ -97,8 +97,8 @@ class WCLM_License_Core {
 
                 // If today is within the 14-day window before expiry
                 if ($today >= $reminder_date && $today < $expiry_date) {
-                    $this->send_customer_email($order, $item, $expiry_date);
-                    $this->send_admin_email($order, $item, $expiry_date);
+					WCLM_License_Email::send_customer_email($order, $item, $expiry_date);
+					WCLM_License_Email::send_admin_email($order, $item, $expiry_date);
 
                     wc_update_order_item_meta($item_id, '_license_reminder_sent', 'yes');
                     $order->add_order_note( __('License reminder email sent to customer and admin.', 'WCLM'));
@@ -110,7 +110,7 @@ class WCLM_License_Core {
     /**
      * Filter: Determine if a product qualifies for a license
      */
-    public function is_license_product($item) {
+    public static function is_license_product($item) {
         // Check Products (Category: services)
         $product_id = $item->get_product_id();
 
@@ -124,7 +124,7 @@ class WCLM_License_Core {
 	/**
 	 * Get prodcut variation description
 	 */
-	public function get_product_variation_desc($item) {
+	public static function get_product_variation_desc($item) {
 		// Get variation description
 		$variation_id = $item->get_variation_id();
 		$variation_desc = '';
@@ -149,128 +149,5 @@ class WCLM_License_Core {
 		}
 
 		return $variation_desc;
-	}
-
-    /**
-     * Email Templates
-     */
-	public function send_customer_email($order, $item, $expiry_date) {
-		$to      = $order->get_billing_email();
-		$customer_name  = $order->get_formatted_billing_full_name();
-		$product = $item->get_name();
-		$variation_desc = $this->get_product_variation_desc($item);
-		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
-
-		ob_start();
-		?>
-
-		<h2 style="color:#cc0000; text-align:right;"> <?php echo esc_html__('הודעה על חידוש אוטומטי של שירותים לאתר', 'WCLM'); ?> </h2>
-
-		<p style="direction:rtl; text-align:right;"> <?php echo esc_html__('שלום רב,', 'WCLM'); ?> </p>
-		
-		<p style="direction:rtl; text-align:right;">
-            <?php echo esc_html__('ברצוננו לעדכנך כי בעוד 14 ימים יחודשו שירותי האתר שלך אוטומטית לשנה נוספת, בהתאם לתנאי ההתקשרות:', 'WCLM'); ?>
-		</p>
-
-		<table cellspacing="0" cellpadding="10" style="width:100%; border:1px solid #e5e5e5; border-collapse:collapse; margin:20px 0; direction:rtl;">
-			<tr>
-				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('לקוח', 'WCLM'); ?> </th>
-				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($customer_name); ?></td>
-			</tr>
-			
-			<tr>
-				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מוצר', 'WCLM'); ?> </th>
-				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
-			</tr>
-
-            <?php if ( ! empty( $variation_desc ) ) : ?>
-			<tr>
-				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('סוג שירות', 'WCLM'); ?> </th>
-				<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($variation_desc); ?></td>
-			</tr>
-			<?php endif; ?>
-
-			<tr>
-				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('תאריך פקיעת הרישיון', 'WCLM'); ?> </th>
-				<td style="border:1px solid #e5e5e5; font-weight:bold; color:#d63638; text-align:right;">
-					<?php echo esc_html($expiry_date); ?>
-				</td>
-			</tr>
-   		</table>
-
-		<p style="margin-top:20px; direction:rtl; text-align:right;">
-			<?php esc_html_e('אי פנייה אלינו בתוך פרק זמן זה תיחשב כהסכמה לחידוש השירותים, באותם תנאים.', 'WCLM'); ?> <br>
-			<?php esc_html_e('במהלך 14 הימים ממועד קבלת הודעה זו ניתן לפנות אלינו בכתב לצורך שינוי חבילת השירותים - הוספה או הסרה של שירותים, או בקשה להפסקת כלל השירותים.'); ?> <br>
-		</p>
-
-		<p style="direction:rtl; text-align:right;">
-			<?php esc_html_e('לכל שאלה או בקשה - ניתן להשיב למייל זה.'); ?>
-		</p>
-
-		<p style="direction:rtl; text-align:right;">
-            <?php esc_html_e('בברכה,', 'WCLM'); ?><br>
-            <?php esc_html_e('מירב', 'WCLM'); ?>
-   		</p>
-
-		<?php
-
-		$message = ob_get_clean();
-
-		$mailer = WC()->mailer();
-		$wrapped_message = $mailer->wrap_message($subject, $message);
-
-		wc_mail($to, $subject, $wrapped_message);
-	}
-	
-	public function send_admin_email($order, $item, $expiry_date) {
-        //$admin_email    = get_option('admin_email');
-		$admin_email    = 'sama@mervanagency.io';
-		$customer_name  = $order->get_formatted_billing_full_name();
-        $product        = $item->get_name();
-        $order_id       = $order->get_id();
-		$variation_desc = $this->get_product_variation_desc($item);
-        $subject = sprintf(__('נדרשת פעולה: התראת פקיעת תוקף רישיון (הזמנה #%d)', 'WCLM'), $order_id);		
-
-		ob_start();
-		
-		?>
-			 <h3 style="color:#cc0000; text-align:right;">
-				<?php echo esc_html(sprintf('%s - תוקף המנוי של לקוח מסתיים', $customer_name)); ?>
-			 </h3>
-			
-			<table cellspacing="0" cellpadding="10" style="width:100%; border:1px solid #e5e5e5; border-collapse:collapse; direction:rtl;">
-				<tr>
-					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"><?php esc_html_e('מזהה הזמנה', 'WCLM'); ?> </th>
-					<td style="border:1px solid #e5e5e5; text-align:right;">#<?php echo esc_html($order_id); ?></td>
-				</tr>
-
-				<tr>
-					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('לקוח', 'WCLM'); ?> </th>
-					<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($customer_name); ?></td>
-				</tr>
-
-				<tr>
-					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('מוצר', 'WCLM'); ?> </th>
-					<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
-				</tr>
-
-				<?php if ( ! empty( $variation_desc ) ) : ?>
-				<tr>
-					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('סוג שירות', 'WCLM'); ?> </th>
-					<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($variation_desc); ?></td>
-				</tr>
-				<?php endif; ?>
-				
-				<tr>
-					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('תאריך פקיעת תוקף', 'WCLM'); ?></th>
-					<td style="border:1px solid #e5e5e5; font-weight:bold; color:#d63638; text-align:right;"><?php echo esc_html($expiry_date); ?></td>
-				</tr>
-			</table>																						
-		<?php
-		$message = ob_get_clean();
-		$mailer = WC()->mailer();
-		$wrapped_message = $mailer->wrap_message($subject, $message);
-		
-		wc_mail($admin_email, $subject, $wrapped_message);
 	}
 }
