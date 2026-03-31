@@ -24,7 +24,6 @@ class WCLM_License_Admin {
     }
 
     public function enqueue_styles($hook) {
-
        	if (strpos($hook, 'wclm-license-reports') === false) {
 			return;
 		}
@@ -39,6 +38,11 @@ class WCLM_License_Admin {
 
 
 	public function render_page() {
+		// PERMISSION CHECK: Ensure only authorized users can see this data
+		if (!current_user_can('manage_woocommerce')) {
+			wp_die(esc_html__('You do not have permission to access this page.', 'WCLM'));
+		}
+
 		$current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
 		$per_page     = 20;
 		$core = new WCLM_License_Core();
@@ -50,7 +54,6 @@ class WCLM_License_Admin {
 		]);
 
 		$filtered_items = [];
-        $today_timestamp = strtotime(current_time('Y-m-d'));
 
 		// STEP 2: Filter valid license items
 		foreach ($orders as $order) {
@@ -67,28 +70,11 @@ class WCLM_License_Admin {
                     $expiry_date = $order->get_meta('_license_expiry_date', true);
                 }
 
-                // Determine Status
-                $status_label = __('No Date Set', 'WCLM');
-                $status_color = '#999';
-
-                if (!empty($expiry_date) && $expiry_date !== 'N/A') {
-                    $expiry_timestamp = strtotime($expiry_date);
-                    if ($expiry_timestamp < $today_timestamp) {
-                        $status_label = __('Expired', 'WCLM');
-                        $status_color = '#d63638'; // Red
-                    } else {
-                        $status_label = __('Active', 'WCLM');
-                        $status_color = '#00a32a'; // Green
-                    }
-                }
-
 				$filtered_items[] = [
 					'order'     => $order,
 					'item'      => $item,
 					'item_id'   => $item_id,
 					'expiry'    => !empty($expiry_date) ? $expiry_date : 'N/A',
-                    'status_label' => $status_label,
-                    'status_color' => $status_color
 				];
 			}
 		}
@@ -102,7 +88,7 @@ class WCLM_License_Admin {
 		?>
 
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e('License Reports', 'WCLM'); ?></h1>
+			<h1 class="wp-heading-inline"><?php esc_html__('License Reports', 'WCLM'); ?></h1>
 
 			<div class="tablenav top">
 				<?php echo $this->render_pagination($current_page, $total_pages); ?>
@@ -111,12 +97,15 @@ class WCLM_License_Admin {
 			<table id="wclm-license-table" class="widefat striped">
 				<thead>
 					<tr>
-						<th><?php esc_html_e('Order', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Customer Name', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Product', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Expiry', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Status', 'WCLM'); ?></th>
-						<th><?php esc_html_e('Actions', 'WCLM'); ?></th>
+						<th><?php esc_html_e('הזמנה', 'WCLM'); // Order ?></th>
+						<th><?php esc_html_e('שם לקוח', 'WCLM'); // Customer name ?></th>
+						<th><?php esc_html_e('שם חברה', 'WCLM'); // Company name ?></th>
+						<th><?php esc_html_e('מוצר', 'WCLM'); //product ?></th>
+						<th><?php esc_html_e('תיאור מוצר', 'WCLM'); //product description ?></th>
+						<th><?php esc_html_e('תאריך הזמנה', 'WCLM'); //order created ?></th>
+						<th><?php esc_html_e('תוקף', 'WCLM'); // expiration ?></th>
+						<th><?php esc_html_e('תאריך התראה', 'WCLM'); //notification date ?></th>
+						<th><?php esc_html_e('פעולות', 'WCLM'); // actions ?></th>
 					</tr>
 				</thead>
 
@@ -129,42 +118,53 @@ class WCLM_License_Admin {
 						$item        = $row['item'];
 						$item_id     = $row['item_id'];
 						$expiry_date = $row['expiry'];
-	
+						$variation_desc = $core->get_product_variation_desc($item);
 					?>
 
 					<tr>
-						<td>#<?php echo esc_html($order->get_id()); ?></td>
+						<td>
+							<a href="<?php echo esc_url(get_edit_post_link($order->get_id())); ?>">
+								#<?php echo esc_html($order->get_id()); ?>
+							</a>
 						<td>
                             <?php echo esc_html($order->get_formatted_billing_full_name()); ?><br>
                             <small><?php echo esc_html($order->get_billing_email()); ?></small>
                         </td>			
+						<td>
+							<a href="<?php echo esc_url($order->get_billing_company()); ?>" target="_blank">
+								<?php echo esc_html($order->get_billing_company()); ?>
+							</a>
+						</td>
 						<td><?php echo esc_html($item->get_name()); ?></td>
+						<td><?php echo esc_html($variation_desc); ?></td>
+						<td><?php echo esc_html($order->get_date_created()->date('Y-m-d')); ?></td>
 						<td><?php echo esc_html($expiry_date); ?></td>
 						<td>
-                            <span class="badge expiration_status" style="background:<?php echo $row['status_color']; ?>;">
-                                <?php echo esc_html($row['status_label']); ?>
-                            </span>  
+                            <?php 
+							$expiry_timestamp = strtotime($expiry_date);
+							echo ($expiry_timestamp) ? esc_html(date('Y-m-d', strtotime('-14 days', $expiry_timestamp))) : '—';
+                        	?>
                         </td>
 						<td>
 							<!-- Customer Email -->
-							<form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline-block; margin-bottom:5px;">
+							<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block; margin-bottom:5px;">
 								<input type="hidden" name="action" value="wclm_send_customer_email">
 								<input type="hidden" name="order_id" value="<?php echo esc_attr($order->get_id()); ?>">
 								<input type="hidden" name="item_id" value="<?php echo esc_attr($item_id); ?>">
 								<?php wp_nonce_field('wclm_send_email_nonce'); ?>
 								<button class="button button-small">
-									<?php esc_html_e('Email Customer', 'WCLM'); ?>
+									<?php esc_html_e('לקוח דוא"ל', 'WCLM'); ?>
 								</button>
 							</form>
 
 							<!-- Admin Email -->
-							<form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display:inline-block;">
+							<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;">
 								<input type="hidden" name="action" value="wclm_send_admin_email">
 								<input type="hidden" name="order_id" value="<?php echo esc_attr($order->get_id()); ?>">
 								<input type="hidden" name="item_id" value="<?php echo esc_attr($item_id); ?>">
 								<?php wp_nonce_field('wclm_send_email_nonce'); ?>
 								<button class="button button-small button-secondary">
-									<?php esc_html_e('Email Admin', 'WCLM'); ?>
+									<?php esc_html_e('מנהל דוא"ל', 'WCLM'); ?>
 								</button>
 							</form>
 						</td>
@@ -174,7 +174,7 @@ class WCLM_License_Admin {
 
 				<?php else : ?>
 					<tr>
-						<td colspan="8"><?php esc_html_e('No License record found.', 'WCLM'); ?></td>
+						<td colspan="8"><?php esc_html__('No License record found.', 'WCLM'); ?></td>
 					</tr>
 				<?php endif; ?>
 				</tbody>
@@ -216,8 +216,14 @@ class WCLM_License_Admin {
 	}
 
 	private function verify_and_send($type) {
+		// 1. Nonce Check
 		if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'wclm_send_email_nonce')) {
 			wp_die('Security check failed');
+		}
+
+		// 2. Permission Check (CRITICAL ADDITION)
+		if (!current_user_can('manage_woocommerce')) {
+			wp_die('You do not have permission to trigger license emails.');
 		}
 
 		$order_id = intval($_POST['order_id']);
@@ -226,6 +232,13 @@ class WCLM_License_Admin {
 		$item     = $order->get_item($item_id);
 		$expiry   = $item->get_meta('_license_expiry_date', true);
 		$core     = new WCLM_License_Core();
+
+		if (!$order) wp_die('Invalid Order');
+		
+		// Check if the item actually belongs to this order and is a license product
+		if (!$item || !$core->is_license_product($item)) {
+			wp_die('Invalid Item for this Order');
+		}
 
 		if ($type === 'customer') {
 			$core->send_customer_email($order, $item, $expiry);

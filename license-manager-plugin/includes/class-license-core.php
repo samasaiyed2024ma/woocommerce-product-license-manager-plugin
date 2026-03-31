@@ -36,7 +36,7 @@ class WCLM_License_Core {
      * The Core Logic: Calculates 1 year from completion and saves meta
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-	    $order_completed = $order->get_date_completed();
+	    $order_completed = $order->get_date_created();
         if (!$order_completed) return false;
 
         $order_date = $order_completed->getTimestamp();
@@ -114,23 +114,18 @@ class WCLM_License_Core {
         // Check Products (Category: services)
         $product_id = $item->get_product_id();
 
-        if(has_term('services', 'product_cat', $product_id)){
+        if(has_term('website-service-packages', 'product_cat', $product_id)){
 			return true;
 		}
 		
 		return false;
     }
 
-    /**
-     * Email Templates
-     */
-	public function send_customer_email($order, $item, $expiry_date) {
-		$to      = $order->get_billing_email();
-		$customer_name  = $order->get_formatted_billing_full_name();
-		$product = $item->get_name();
-		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
-
-        // Get variation description
+	/**
+	 * Get prodcut variation description
+	 */
+	public function get_product_variation_desc($item) {
+		// Get variation description
 		$variation_id = $item->get_variation_id();
 		$variation_desc = '';
 		
@@ -148,10 +143,23 @@ class WCLM_License_Core {
 				}
 				
 				//Change "Storage only" to just "Storage" in service type
-            	//$variation_desc = str_ireplace('Storage only', 'Storage', $variation_desc);
+            	$variation_desc = str_ireplace('Storage only', 'Storage', $variation_desc);
 				$variation_desc = str_ireplace('אחסון בלבד', 'אחסון', $variation_desc);
 			}
 		}
+
+		return $variation_desc;
+	}
+
+    /**
+     * Email Templates
+     */
+	public function send_customer_email($order, $item, $expiry_date) {
+		$to      = $order->get_billing_email();
+		$customer_name  = $order->get_formatted_billing_full_name();
+		$product = $item->get_name();
+		$variation_desc = $this->get_product_variation_desc($item);
+		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
 
 		ob_start();
 		?>
@@ -192,8 +200,7 @@ class WCLM_License_Core {
 
 		<p style="margin-top:20px; direction:rtl; text-align:right;">
 			<?php esc_html_e('אי פנייה אלינו בתוך פרק זמן זה תיחשב כהסכמה לחידוש השירותים, באותם תנאים.', 'WCLM'); ?> <br>
-			<?php esc_html_e('במהלך 14 הימים ממועד קבלת הודעה זו ניתן לפנות אלינו בכתב לצורך שינוי חבילת השירותים - הוספה או הסרה של שירותים, או בקשה להפסקת כלל השירותים. אי פנייה אלינו בתקופה זו תחשב כהסכמתך לחידוש השירותים לשנה נוספת.'); ?> <br>
-			<?php esc_html_e('במקרה של בקשה להפסקת כלל השירותים - האתר יימחק משרתי החברה וירד מהאוויר.'); ?>
+			<?php esc_html_e('במהלך 14 הימים ממועד קבלת הודעה זו ניתן לפנות אלינו בכתב לצורך שינוי חבילת השירותים - הוספה או הסרה של שירותים, או בקשה להפסקת כלל השירותים.'); ?> <br>
 		</p>
 
 		<p style="direction:rtl; text-align:right;">
@@ -216,17 +223,20 @@ class WCLM_License_Core {
 	}
 	
 	public function send_admin_email($order, $item, $expiry_date) {
-        $admin_email    = get_option('admin_email');
+        //$admin_email    = get_option('admin_email');
+		$admin_email    = 'sama@mervanagency.io';
 		$customer_name  = $order->get_formatted_billing_full_name();
         $product        = $item->get_name();
         $order_id       = $order->get_id();
-        $subject        = sprintf(__('נדרשת פעולה: התראת פקיעת תוקף רישיון (הזמנה #%d)', 'WCLM'), $order_id);;
-		
+		$variation_desc = $this->get_product_variation_desc($item);
+        $subject = sprintf(__('נדרשת פעולה: התראת פקיעת תוקף רישיון (הזמנה #%d)', 'WCLM'), $order_id);		
+
 		ob_start();
 		
 		?>
-			<h2 style="color:#cc0000; text-align:right;"> <?php esc_html_e('התראת פקיעת תוקף רישיון', 'WCLM'); ?> </h2>
-			<p style="direction:rtl; text-align:right;"> <?php esc_html_e('הרישיון הבא עומד פוג בקרוב:', 'WCLM'); ?> </p>
+			 <h3 style="color:#cc0000; text-align:right;">
+				<?php echo esc_html(sprintf('%s - תוקף המנוי של לקוח מסתיים', $customer_name)); ?>
+			 </h3>
 			
 			<table cellspacing="0" cellpadding="10" style="width:100%; border:1px solid #e5e5e5; border-collapse:collapse; direction:rtl;">
 				<tr>
@@ -244,6 +254,13 @@ class WCLM_License_Core {
 					<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($product); ?></td>
 				</tr>
 
+				<?php if ( ! empty( $variation_desc ) ) : ?>
+				<tr>
+					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('סוג שירות', 'WCLM'); ?> </th>
+					<td style="border:1px solid #e5e5e5; text-align:right;"><?php echo esc_html($variation_desc); ?></td>
+				</tr>
+				<?php endif; ?>
+				
 				<tr>
 					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('תאריך פקיעת תוקף', 'WCLM'); ?></th>
 					<td style="border:1px solid #e5e5e5; font-weight:bold; color:#d63638; text-align:right;"><?php echo esc_html($expiry_date); ?></td>
