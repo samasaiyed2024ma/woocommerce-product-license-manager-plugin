@@ -11,6 +11,7 @@ class WCLM_License_Core {
         // 2. Hook for the daily automated task
         add_action('wclm_daily_license_check', [$this, 'run_daily_license_process']);
 		
+		// 3. Hide meta keys
 		add_filter('woocommerce_hidden_order_itemmeta', function($hidden_meta_keys) {
 			$hidden_meta_keys[] = '_license_expiry_date';
 			$hidden_meta_keys[] = '_license_reminder_sent';

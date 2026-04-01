@@ -45,7 +45,6 @@ class WCLM_License_Admin {
 
 		$current_page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
 		$per_page     = 20;
-		$core = new WCLM_License_Core();
 
 		// STEP 1: Fetch a batch of orders
 		$orders = wc_get_orders([
@@ -78,6 +77,13 @@ class WCLM_License_Admin {
 				];
 			}
 		}
+		
+		usort($filtered_items, function($a, $b){
+			$a_id = $a['order']->get_id();
+			$b_id = $b['order']->get_id();
+			
+			return $b_id <=> $a_id;
+		});
 
 		// STEP 3: Manual pagination on filtered items
 		$total_items = count($filtered_items);
@@ -221,7 +227,7 @@ class WCLM_License_Admin {
 			wp_die('Security check failed');
 		}
 
-		// 2. Permission Check (CRITICAL ADDITION)
+		// 2. Permission Check
 		if (!current_user_can('manage_woocommerce')) {
 			wp_die('You do not have permission to trigger license emails.');
 		}
@@ -231,7 +237,6 @@ class WCLM_License_Admin {
 		$order    = wc_get_order($order_id);
 		$item     = $order->get_item($item_id);
 		$expiry   = $item->get_meta('_license_expiry_date', true);
-		$core     = new WCLM_License_Core();
 
 		if (!$order) wp_die('Invalid Order');
 		

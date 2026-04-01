@@ -84,8 +84,7 @@ class WCLM_License_Email {
      * Send admin email for license expiration reminder
      */
     public static function send_admin_email($order, $item, $expiry_date) {
-        //$admin_email    = get_option('admin_email');
-        $admin_email    = 'sama@mervanagency.io';
+        $admin_email    = get_option('admin_email');
 		$customer_name  = $order->get_formatted_billing_full_name();
         $product        = $item->get_name();
         $order_id       = $order->get_id();
