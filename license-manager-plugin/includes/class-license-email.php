@@ -20,6 +20,8 @@ class WCLM_License_Email {
 		$to      = $order->get_billing_email();
 		$customer_name  = $order->get_formatted_billing_full_name();
 		$product = $item->get_name();
+		//$product_price = wc_price($item->get_total(), array('currency' => $order->get_currency()));
+		$order_total = wc_price($order->get_total(), array('currency' => $order->get_currency()));
 		$variation_desc = WCLM_License_Core::get_product_variation_desc($item);
 		$subject = esc_html__('הגיע זמן החידוש של המנוי השנתי לשירותי האתר!');
 
@@ -58,6 +60,13 @@ class WCLM_License_Email {
 					<?php echo esc_html($expiry_date); ?>
 				</td>
 			</tr>
+			
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מחיר חודשי כולל מע"מ', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right; font-weight:bold;">
+					<bdo dir="ltr" style="unicode-bidi:bidi-override; direction:ltr;"><?php echo $order_total; ?></bdo>
+				</td>
+			</tr>
    		</table>
 
 		<p style="margin-top:20px; direction:rtl; text-align:right;">
@@ -88,6 +97,7 @@ class WCLM_License_Email {
 		$customer_name  = $order->get_formatted_billing_full_name();
         $product        = $item->get_name();
         $order_id       = $order->get_id();
+		$order_total = wc_price($order->get_total(), array('currency' => $order->get_currency()));
 		$variation_desc = WCLM_License_Core::get_product_variation_desc($item);
         $subject = sprintf(__('נדרשת פעולה: התראת פקיעת תוקף רישיון (הזמנה #%d)', 'WCLM'), $order_id);		
 
@@ -125,6 +135,13 @@ class WCLM_License_Email {
 					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('תאריך פקיעת תוקף', 'WCLM'); ?></th>
 					<td style="border:1px solid #e5e5e5; font-weight:bold; color:#d63638; text-align:right;"><?php echo esc_html($expiry_date); ?></td>
 				</tr>
+				
+				<tr>
+					<th style="text-align:right; border:1px solid #e5e5e5; background:#f7f7f7;"> <?php esc_html_e('מחיר חודשי כולל מע"מ', 'WCLM'); ?> </th>
+					<td style="border:1px solid #e5e5e5; text-align:right; font-weight:bold;">
+						<bdo dir="ltr" style="unicode-bidi:bidi-override; direction:ltr;"><?php echo $order_total; ?></bdo>
+					</td>
+				</tr>
 			</table>																						
 		<?php
 		$message = ob_get_clean();
@@ -138,6 +155,7 @@ class WCLM_License_Email {
         $to      = $order->get_billing_email();
 		$customer_name  = $order->get_formatted_billing_full_name();
 		$product = $item->get_name();
+		$order_total = wc_price($order->get_total(), array('currency' => $order->get_currency()));
 		$variation_desc = WCLM_License_Core::get_product_variation_desc($item);
 		$subject = esc_html__('הודעה על חידוש המנוי לשירותי האתר');
 
@@ -173,6 +191,13 @@ class WCLM_License_Email {
 					<?php echo esc_html($new_expiry); ?>
 				</td>
 			</tr>
+			
+			<tr>
+				<th style="text-align:right; background:#f3f2ff; border:1px solid #e5e5e5;"> <?php esc_html_e('מחיר חודשי כולל מע"מ', 'WCLM'); ?> </th>
+				<td style="border:1px solid #e5e5e5; text-align:right; font-weight:bold;">
+					<bdo dir="ltr" style="unicode-bidi:bidi-override; direction:ltr;"><?php echo $order_total; ?></bdo>
+				</td>
+			</tr>
    		</table>
 
         <p style="direction:rtl; text-align:right;">
@@ -188,5 +213,6 @@ class WCLM_License_Email {
 
 		$message = ob_get_clean();
         self::send_mail($to, $subject, $message);
-    } 
+    }
+    
 }

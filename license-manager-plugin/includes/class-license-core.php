@@ -17,7 +17,57 @@ class WCLM_License_Core {
 			$hidden_meta_keys[] = '_license_reminder_sent';
 			return $hidden_meta_keys;
 		});
+		
+		add_action('woocommerce_new_order', [$this, 'save_original_order_date'], 20, 2);
+
+		      // 4. When admin updates license start date, recalculate expiry for all license items
+        add_action('wclm_license_start_date_updated', [$this, 'recalculate_expiry_from_start_date'], 10, 1);
     }	
+	
+	/**
+	 * Save original order created date
+	 */
+	public function save_original_order_date($order_id, $order) {
+		if (!metadata_exists('post', $order_id, '_original_order_created_date')) {
+			$original_order_date = $order->get_date_created()->date('Y-m-d');
+			update_post_meta($order_id, '_original_order_created_date', $original_order_date);
+		}
+	}
+	
+	/**
+	 * When admin saves a new license_start_date on the order, recalculate license expiry date
+	 */ 
+	public function recalculate_expiry_from_start_date($order_id){
+		$order = wc_get_order($order_id);
+		if(!$order) return;
+							  
+		$start_date = get_post_meta($order_id, '_license_start_date', true);
+		if(empty($start_date)) return;
+		
+		if (is_numeric($start_date)) {
+			$start_date = date('Y-m-d', (int) $start_date);
+		}
+		
+		$start_timestamp = strtotime($start_date);
+    	if (!$start_timestamp) return;
+		
+		$expiry_date = date('Y-m-d', strtotime('+1 year', $start_timestamp));
+							  
+		foreach($order->get_items() as $item_id => $item){
+			if(!self::is_license_product($item)) continue;
+			
+			wc_update_order_item_meta($item_id, '_license_expiry_date', $expiry_date);
+			wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
+		
+			$order->add_order_note(sprintf(
+                __('License expiry recalculated from start date %1$s → new expiry: %2$s for %3$s', 'WCLM'),
+                $start_date,
+                $expiry_date,
+                $item->get_name()
+            ));
+		}
+					
+	}
 	
     /**
      * Handler for new orders being completed
@@ -34,24 +84,46 @@ class WCLM_License_Core {
     }
 
     /**
-     * The Core Logic: Calculates 1 year from completion and saves meta
+     * The Core Logic: Calculates 1 year from license start date or completion date
      */
     public function calculate_and_save_expiry($order, $item_id, $item) {
-	    $order_completed = $order->get_date_completed();
-        if (!$order_completed) return false;
+	    $order_id = $order->get_id();
 
-        $order_date = $order_completed->getTimestamp();
+        // Use admin-set license start date if available
+        $start_date_meta = get_post_meta($order_id, '_license_start_date', true);
 
-        // Set expiry to 1 year after the order was actually completed
-        $expire_date = date('Y-m-d', strtotime('+1 year', $order_date));
+        if (!empty($start_date_meta)) {
+            $base_timestamp = strtotime($start_date_meta);
+        } else {
+            // Fall back to order completed date
+//             $order_completed = $order->get_date_completed();
+//             if (!$order_completed) return false;
+//             $base_timestamp = $order_completed->getTimestamp();
+
+			$original_created = get_post_meta($order_id, '_original_order_created_date', true);
+
+        if (!empty($original_created)) {
+            $base_timestamp = strtotime($original_created);
+        } else {
+            $order_completed = $order->get_date_completed();
+            if (!$order_completed) return false;
+            $base_timestamp = $order_completed->getTimestamp();
+        }
+			
+            // Auto-set _license_start_date from completed date if not set yet
+            update_post_meta($order_id, '_license_start_date', date('Y-m-d', $base_timestamp));
+        }
+
+        $expire_date = date('Y-m-d', strtotime('+1 year', $base_timestamp));
 
         wc_update_order_item_meta($item_id, '_license_expiry_date', $expire_date);
         wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
-		
-		// Save meta key at ORDER level
-		update_post_meta($order->get_id(), '_license_expiry_date', $expire_date);
         
-        $order->add_order_note(sprintf(__('License expiry initialized: %1$s for %2$s', 'WCLM'), $expire_date, $item->get_name()));
+        $order->add_order_note(sprintf(
+            __('License expiry initialized: %1$s for %2$s', 'WCLM'),
+            $expire_date,
+            $item->get_name()
+        ));
         
         return $expire_date;
     }
@@ -112,7 +184,13 @@ class WCLM_License_Core {
 					//Update meta
 					wc_update_order_item_meta($item_id, '_license_expiry_date', $new_expiry);
 					wc_update_order_item_meta($item_id, '_license_reminder_sent', 'no');
-					update_post_meta($order_id, '_license_expiry_date', $new_expiry);
+					
+					// Advance the license start date by 1 year too
+//                     $current_start = get_post_meta($order_id, '_license_start_date', true);
+//                     if (!empty($current_start)) {
+//                         $new_start = date('Y-m-d', strtotime('+1 year', strtotime($current_start)));
+//                         update_post_meta($order_id, '_license_start_date', $new_start);
+//                     }
 
 					WCLM_License_Email::send_license_renewal_email_to_customer($order, $item, $new_expiry);
 
