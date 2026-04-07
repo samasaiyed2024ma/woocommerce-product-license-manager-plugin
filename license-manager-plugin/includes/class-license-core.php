@@ -210,6 +210,15 @@ class WCLM_License_Core {
         if(has_term('website-service-packages', 'product_cat', $product_id)){
 			return true;
 		}
+
+        // Check child category of website-service-packages category
+		$parent_cat = get_term_by('slug', 'website-service-packages', 'product_cat');
+        if ($parent_cat) {
+            $child_cats = get_term_children($parent_cat->term_id, 'product_cat');
+            if (!empty($child_cats) && has_term($child_cats, 'product_cat', $product_id)) {
+                return true;
+            }
+        }
 		
 		return false;
     }
